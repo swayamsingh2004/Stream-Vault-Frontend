@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StreamVault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── TOASTS ── -->
+<div id="toasts"></div>
+
+<!-- ══════════════════════════════════════════════
+     AUTH PAGE
+══════════════════════════════════════════════ -->
+<div id="auth-page" class="page">
+  <div class="auth-wrap">
+    <div class="auth-brand">
+      <div class="brand-icon">▶</div>
+      <h1>StreamVault</h1>
+      <p>Your personal video universe</p>
+    </div>
+    <div class="auth-card">
+      <div class="atabs">
+        <div class="atab active" id="atab-login"    onclick="switchAuthTab('login')">Sign In</div>
+        <div class="atab"        id="atab-register" onclick="switchAuthTab('register')">Create Account</div>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="aform active" id="aform-login">
+        <div class="fg">
+          <label>Email or Username</label>
+          <input type="text" id="li" placeholder="you@example.com" onkeydown="if(event.key==='Enter')handleLogin()" autocomplete="username" />
+        </div>
+        <div class="fg">
+          <label>Password</label>
+          <input type="password" id="lp" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleLogin()" autocomplete="current-password" />
+        </div>
+        <button class="btn-pri" id="login-btn" onclick="handleLogin()"><span>Sign In</span></button>
+      </div>
+
+      <!-- REGISTER -->
+      <div class="aform" id="aform-register">
+        <div class="frow">
+          <div class="fg"><label>Full Name</label><input type="text" id="rfn" placeholder="John Doe" /></div>
+          <div class="fg"><label>Username</label><input type="text" id="run" placeholder="johndoe" /></div>
+        </div>
+        <div class="fg"><label>Email</label><input type="email" id="rem" placeholder="you@example.com" autocomplete="email" /></div>
+        <div class="fg"><label>Password <span style="color:var(--text3);font-size:10px;text-transform:none;font-weight:400;">min 8 chars</span></label>
+          <input type="password" id="rpw" placeholder="Min 8 characters" autocomplete="new-password" />
+        </div>
+        <div class="fg">
+          <label>Avatar <span style="color:var(--red);font-size:10px;">required</span></label>
+          <label class="file-pick">
+            <span>📸</span><span class="fname" id="av-lbl">Choose profile photo</span>
+            <input type="file" id="rav" accept="image/*" onchange="setLabel('rav','av-lbl')" />
+          </label>
+        </div>
+        <div class="fg">
+          <label>Cover Image <span style="color:var(--text3);font-size:10px;text-transform:none;font-weight:400;">optional</span></label>
+          <label class="file-pick">
+            <span>🖼️</span><span class="fname" id="cv-lbl">Choose cover image</span>
+            <input type="file" id="rcv" accept="image/*" onchange="setLabel('rcv','cv-lbl')" />
+          </label>
+        </div>
+        <button class="btn-pri" id="reg-btn" onclick="handleRegister()"><span>Create Account</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     APP PAGE
+══════════════════════════════════════════════ -->
+<div id="app-page" class="page">
+  <header>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="icon-btn" id="menu-toggle" onclick="toggleSidebar()" title="Menu (M)">☰</button>
+      <a class="h-logo" href="#" onclick="navigate('home');return false;">
+        <div class="h-logo-dot"></div>StreamVault
+      </a>
+    </div>
+    <div class="search-wrap">
+      <button onclick="doSearch()" title="Search">🔍</button>
+      <input type="text" id="search-input" placeholder="Search videos… (press /)" onkeydown="if(event.key==='Enter')doSearch()" />
+      <button onclick="document.getElementById('search-input').value=''" title="Clear">✕</button>
+    </div>
+    <div class="h-right">
+      <button class="icon-btn" title="Upload (U)" onclick="openModal('upload-modal')">＋</button>
+      <button class="icon-btn" title="Watch History" onclick="navigate('history')">🔔</button>
+      <div class="h-avatar" id="h-avatar" onclick="navigate('profile')" title="My Channel"></div>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+      <button class="nlink active" id="n-home"          onclick="navigate('home')">         <span class="ni">🏠</span>Home</button>
+      <button class="nlink"        id="n-subscriptions"  onclick="navigate('subscriptions')"> <span class="ni">📡</span>Subscriptions</button>
+      <button class="nlink"        id="n-trending"       onclick="navigate('trending')">      <span class="ni">🔥</span>Trending</button>
+      <div class="sidebar-divider"></div>
+      <div class="ns-title">Library</div>
+      <button class="nlink" id="n-history"   onclick="navigate('history')">  <span class="ni">🕐</span>Watch History</button>
+      <button class="nlink" id="n-liked"     onclick="navigate('liked')">    <span class="ni">👍</span>Liked Videos</button>
+      <button class="nlink" id="n-playlists" onclick="navigate('playlists')"><span class="ni">🎵</span>Playlists</button>
+      <button class="nlink" id="n-tweets"    onclick="navigate('tweets')">   <span class="ni">💬</span>Community</button>
+      <div class="sidebar-divider"></div>
+      <div class="ns-title">Studio</div>
+      <button class="nlink" id="n-dashboard" onclick="navigate('dashboard')"><span class="ni">📊</span>Dashboard</button>
+      <button class="nlink" id="n-profile"   onclick="navigate('profile')">  <span class="ni">👤</span>My Channel</button>
+      <button class="nlink" id="n-settings"  onclick="navigate('settings')"> <span class="ni">⚙️</span>Settings</button>
+      <div class="sidebar-divider"></div>
+      <button class="nlink" onclick="handleLogout()"><span class="ni">🚪</span>Sign Out</button>
+    </aside>
+
+    <main id="main-content"></main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     VIDEO PLAYER PAGE
+══════════════════════════════════════════════ -->
+<div id="video-page" class="page">
+  <div class="vp-header">
+    <button class="back-btn" onclick="navigate('home')" title="Back">←</button>
+    <a class="h-logo" href="#" onclick="navigate('home');return false;">
+      <div class="h-logo-dot"></div>StreamVault
+    </a>
+    <div style="flex:1;"></div>
+    <div class="h-avatar" id="vp-avatar" onclick="navigate('profile')" title="My Channel"></div>
+  </div>
+  <div class="vp-body">
+    <div id="vp-main"></div>
+    <div class="vp-sidebar" id="vp-sidebar"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════════ -->
+
+<!-- UPLOAD VIDEO -->
+<div class="moverlay" id="upload-modal">
+  <div class="modal">
+    <div class="m-hdr"><div class="m-title">📤 Upload Video</div><button class="m-close" onclick="closeModal('upload-modal')">✕</button></div>
+    <div class="fg"><label>Title <span style="color:var(--red);font-size:10px;">required</span></label>
+      <input type="text" id="u-title" placeholder="Give your video a great title" /></div>
+    <div class="fg"><label>Description</label><textarea id="u-desc" placeholder="Describe your video…"></textarea></div>
+    <div class="frow">
+      <div class="fg">
+        <label>Video File <span style="color:var(--red);font-size:10px;">required</span></label>
+        <label class="file-pick"><span>🎬</span><span class="fname" id="vf-lbl">Choose video</span>
+          <input type="file" id="u-video" accept="video/*" onchange="setLabel('u-video','vf-lbl')" /></label>
+      </div>
+      <div class="fg">
+        <label>Thumbnail <span style="color:var(--red);font-size:10px;">required</span></label>
+        <label class="file-pick"><span>🖼️</span><span class="fname" id="tf-lbl">Choose thumbnail</span>
+          <input type="file" id="u-thumb" accept="image/*" onchange="setLabel('u-thumb','tf-lbl')" /></label>
+      </div>
+    </div>
+    <div class="fg"><label>Duration <span style="font-size:10px;color:var(--text3);text-transform:none;font-weight:400;">(seconds, optional)</span></label>
+      <input type="number" id="u-dur" placeholder="e.g. 240" min="1" /></div>
+    <div class="prog-wrap" id="prog-wrap">
+      <div class="prog-label"><span>Uploading to server…</span><span id="prog-pct">0%</span></div>
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+    <button class="btn-pri" id="upload-btn" onclick="handleUpload()"><span>Upload Video</span></button>
+  </div>
+</div>
+
+<!-- EDIT VIDEO -->
+<div class="moverlay" id="edit-video-modal">
+  <div class="modal">
+    <div class="m-hdr"><div class="m-title">✏️ Edit Video</div><button class="m-close" onclick="closeModal('edit-video-modal')">✕</button></div>
+    <input type="hidden" id="ev-id" />
+    <div class="fg"><label>Title</label><input type="text" id="ev-title" placeholder="Video title" /></div>
+    <div class="fg"><label>Description</label><textarea id="ev-desc" placeholder="Description…"></textarea></div>
+    <div class="fg">
+      <label>New Thumbnail <span style="color:var(--text3);font-size:10px;text-transform:none;font-weight:400;">optional</span></label>
+      <label class="file-pick"><span>🖼️</span><span class="fname" id="et-lbl">Replace thumbnail (optional)</span>
+        <input type="file" id="ev-thumb" accept="image/*" onchange="setLabel('ev-thumb','et-lbl')" /></label>
+    </div>
+    <button class="btn-pri" id="ev-btn" onclick="handleEditVideo()"><span>Save Changes</span></button>
+  </div>
+</div>
+
+<!-- TWEET / COMMUNITY POST -->
+<div class="moverlay" id="tweet-modal">
+  <div class="modal">
+    <div class="m-hdr"><div class="m-title">💬 New Community Post</div><button class="m-close" onclick="closeModal('tweet-modal')">✕</button></div>
+    <div class="fg">
+      <label>What's on your mind?</label>
+      <textarea id="tw-content" placeholder="Share something with your community…" style="min-height:120px;"></textarea>
+    </div>
+    <button class="btn-pri" id="tw-btn" onclick="handleCreateTweet()"><span>Post</span></button>
+  </div>
+</div>
+
+<!-- EDIT TWEET -->
+<div class="moverlay" id="edit-tweet-modal">
+  <div class="modal">
+    <div class="m-hdr"><div class="m-title">✏️ Edit Post</div><button class="m-close" onclick="closeModal('edit-tweet-modal')">✕</button></div>
+    <input type="hidden" id="etw-id" />
+    <div class="fg"><label>Content</label><textarea id="etw-content" style="min-height:120px;"></textarea></div>
+    <button class="btn-pri" id="etw-btn" onclick="handleEditTweet()"><span>Save</span></button>
+  </div>
+</div>
+
+<!-- CREATE PLAYLIST -->
+<div class="moverlay" id="playlist-modal">
+  <div class="modal">
+    <div class="m-hdr"><div class="m-title">🎵 New Playlist</div><button class="m-close" onclick="closeModal('playlist-modal')">✕</button></div>
+    <div class="fg"><label>Name <span style="color:var(--red);font-size:10px;">required</span></label>
+      <input type="text" id="pl-name" placeholder="My awesome playlist" /></div>
+    <div class="fg"><label>Description</label><textarea id="pl-desc" placeholder="What's in this playlist?"></textarea></div>
+    <button class="btn-pri" id="pl-btn" onclick="handleCreatePlaylist()"><span>Create Playlist</span></button>
+  </div>
+</div>
+
+<!-- ADD TO PLAYLIST -->
+<div class="moverlay" id="atp-modal">
+  <div class="modal">
+    <div class="m-hdr"><div class="m-title">🎵 Save to Playlist</div><button class="m-close" onclick="closeModal('atp-modal')">✕</button></div>
+    <input type="hidden" id="atp-vid" />
+    <div id="atp-list" style="max-height:340px;overflow-y:auto;"></div>
+    <button class="btn-pri" style="margin-top:12px;" onclick="openModal('playlist-modal');closeModal('atp-modal')">
+      <span>＋ Create New Playlist</span>
+    </button>
+  </div>
+</div>
+
+<!-- EDIT PROFILE -->
+<div class="moverlay" id="edit-profile-modal">
+  <div class="modal">
+    <div class="m-hdr"><div class="m-title">👤 Edit Profile</div><button class="m-close" onclick="closeModal('edit-profile-modal')">✕</button></div>
+    <div class="fg"><label>Full Name</label><input type="text" id="ep-name" placeholder="Your full name" /></div>
+    <div class="fg">
+      <label>New Avatar <span style="color:var(--text3);font-size:10px;text-transform:none;font-weight:400;">optional</span></label>
+      <label class="file-pick"><span>📸</span><span class="fname" id="ep-av-lbl">Replace avatar</span>
+        <input type="file" id="ep-av" accept="image/*" onchange="setLabel('ep-av','ep-av-lbl')" /></label>
+    </div>
+    <div class="fg">
+      <label>New Cover Image <span style="color:var(--text3);font-size:10px;text-transform:none;font-weight:400;">optional</span></label>
+      <label class="file-pick"><span>🖼️</span><span class="fname" id="ep-cv-lbl">Replace cover</span>
+        <input type="file" id="ep-cv" accept="image/*" onchange="setLabel('ep-cv','ep-cv-lbl')" /></label>
+    </div>
+    <button class="btn-pri" id="ep-btn" onclick="handleEditProfile()"><span>Save Profile</span></button>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD -->
+<div class="moverlay" id="pw-modal">
+  <div class="modal">
+    <div class="m-hdr"><div class="m-title">🔒 Change Password</div><button class="m-close" onclick="closeModal('pw-modal')">✕</button></div>
+    <div class="fg"><label>Current Password</label><input type="password" id="pw-old" placeholder="Current password" autocomplete="current-password" /></div>
+    <div class="fg"><label>New Password</label><input type="password" id="pw-new" placeholder="Min 8 characters" autocomplete="new-password" /></div>
+    <button class="btn-pri" id="pw-btn" onclick="handleChangePassword()"><span>Update Password</span></button>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div class="moverlay" id="confirm-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="m-hdr"><div class="m-title" id="dlg-title">Confirm</div><button class="m-close" onclick="closeModal('confirm-modal')">✕</button></div>
+    <p id="dlg-body" style="font-size:14px;color:var(--text2);margin-bottom:22px;line-height:1.65;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn ghost" onclick="closeModal('confirm-modal')">Cancel</button>
+      <button class="btn danger" id="dlg-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU (right-click on video card) -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" onclick="if(_ctxId)openVideo(_ctxId)">▶ Play</div>
+  <div class="ctx-item" onclick="if(_ctxId)openAddToPlaylist(_ctxId)">🎵 Add to Playlist</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item" id="ctx-edit" onclick="if(_ctxId){const v2=S.videos.find(v=>v._id===_ctxId);if(v2)openEditVideo(_ctxId,v2.title||'',v2.description||'')}">✏️ Edit</div>
+  <div class="ctx-item" id="ctx-toggle" onclick="if(_ctxId)togglePublish(_ctxId)">👁 Toggle Visibility</div>
+  <div class="ctx-divider"></div>
+  <div class="ctx-item danger" id="ctx-del" onclick="if(_ctxId)deleteVideo(_ctxId)">🗑 Delete</div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
