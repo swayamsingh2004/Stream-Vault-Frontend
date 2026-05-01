@@ -1,25 +1,19 @@
-// ═══════════════════════════════════════════════════════
-//  StreamVault — app.js
-//
-//  ⚙️  CONFIGURATION — change this if your backend runs on a different port
-// ═══════════════════════════════════════════════════════
+
 
 const API_BASE = 'http://localhost:8000/api/v1';
 
-// ── Self-test on load: pings /healthcheck and shows a banner if unreachable ──
+
 async function checkBackendConnection() {
   try {
     const r = await fetch(API_BASE + '/healthcheck', {
       credentials: 'include',
       signal: AbortSignal.timeout(5000),
     });
-    // Your healthcheck returns {statusCode:200, success:true, data:null}
-    // r.ok = true means HTTP 200 — that is enough, backend is reachable
+   
     if (r.ok) return true;
     throw new Error('not ok');
   } catch (e) {
-    // Only show the banner for actual network failures (backend not running)
-    // not for auth errors (401) which just mean user is not logged in yet
+    
     if (e.message === 'Unauthorized') return false;
     const banner = document.createElement('div');
     banner.id = 'sv-offline-banner';
@@ -39,7 +33,7 @@ async function checkBackendConnection() {
         </div>
       </div>
       <button onclick="this.remove()" style="background:none;border:none;color:#5c5c78;cursor:pointer;font-size:18px;padding:0;flex-shrink:0;line-height:1;margin-left:4px;">✕</button>`;
-    // Remove any existing banner before adding new one
+   
     document.getElementById('sv-offline-banner')?.remove();
     document.body.appendChild(banner);
     setTimeout(() => banner?.remove(), 10000);
@@ -58,9 +52,9 @@ const S = {
   prefs: JSON.parse(localStorage.getItem('sv_prefs') || '{"autoplay":true,"saveHistory":true,"emailNotif":false}'),
 };
 
-// ══════════════════════════════════
+
 //  API HELPER
-// ══════════════════════════════════
+
 async function api(path, opts = {}) {
   const isForm = opts.body instanceof FormData;
   const options = {
@@ -85,9 +79,9 @@ async function api(path, opts = {}) {
 
 function ok(r) { return r && (r.success || r.statusCode === 200 || r.statusCode === 201); }
 
-// ══════════════════════════════════
+
 //  TOAST
-// ══════════════════════════════════
+
 function toast(msg, type = 'info') {
   const box = document.getElementById('toasts');
   const el = document.createElement('div');
@@ -100,9 +94,9 @@ function toast(msg, type = 'info') {
   }, 3500);
 }
 
-// ══════════════════════════════════
+
 //  CONFIRM DIALOG
-// ══════════════════════════════════
+
 function confirm2(title, body, cb) {
   document.getElementById('dlg-title').textContent = title;
   document.getElementById('dlg-body').textContent = body;
