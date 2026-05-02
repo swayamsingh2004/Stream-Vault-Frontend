@@ -1,19 +1,25 @@
-
+// ═══════════════════════════════════════════════════════
+//  StreamVault — app.js
+//
+//  ⚙️  CONFIGURATION — change this if your backend runs on a different port
+// ═══════════════════════════════════════════════════════
 
 const API_BASE = 'https://stream-vault-z91y.onrender.com/api/v1';
 
-
+// ── Self-test on load: pings /healthcheck and shows a banner if unreachable ──
 async function checkBackendConnection() {
   try {
     const r = await fetch(API_BASE + '/healthcheck', {
       credentials: 'include',
       signal: AbortSignal.timeout(5000),
     });
-   
+    // Your healthcheck returns {statusCode:200, success:true, data:null}
+    // r.ok = true means HTTP 200 — that is enough, backend is reachable
     if (r.ok) return true;
     throw new Error('not ok');
   } catch (e) {
-    
+    // Only show the banner for actual network failures (backend not running)
+    // not for auth errors (401) which just mean user is not logged in yet
     if (e.message === 'Unauthorized') return false;
     const banner = document.createElement('div');
     banner.id = 'sv-offline-banner';
@@ -33,7 +39,7 @@ async function checkBackendConnection() {
         </div>
       </div>
       <button onclick="this.remove()" style="background:none;border:none;color:#5c5c78;cursor:pointer;font-size:18px;padding:0;flex-shrink:0;line-height:1;margin-left:4px;">✕</button>`;
-   
+    // Remove any existing banner before adding new one
     document.getElementById('sv-offline-banner')?.remove();
     document.body.appendChild(banner);
     setTimeout(() => banner?.remove(), 10000);
@@ -52,9 +58,9 @@ const S = {
   prefs: JSON.parse(localStorage.getItem('sv_prefs') || '{"autoplay":true,"saveHistory":true,"emailNotif":false}'),
 };
 
-
+// ══════════════════════════════════
 //  API HELPER
-
+// ══════════════════════════════════
 async function api(path, opts = {}) {
   const isForm = opts.body instanceof FormData;
   const options = {
@@ -66,7 +72,18 @@ async function api(path, opts = {}) {
     options.body = JSON.stringify(options.body);
   }
   const res = await fetch(API_BASE + path, options);
-  if (res.status === 401) { showAuth(); throw new Error('Unauthorized'); }
+  if (res.status === 401) {
+    // Try silent token refresh before redirecting to login
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      // Retry the original request once with fresh cookies
+      const res2 = await fetch(API_BASE + path, options);
+      if (res2.status === 401) { showAuth(); throw new Error('Unauthorized'); }
+      const t2 = await res2.text();
+      try { return JSON.parse(t2); } catch { throw new Error('Non-JSON response'); }
+    }
+    showAuth(); throw new Error('Unauthorized');
+  }
   // Safely parse JSON — if backend returns HTML (404 page etc) don't crash
   const text = await res.text();
   try {
@@ -79,9 +96,20 @@ async function api(path, opts = {}) {
 
 function ok(r) { return r && (r.success || r.statusCode === 200 || r.statusCode === 201); }
 
+// POST /users/refresh-token — silently refreshes expired access token
+async function tryRefreshToken() {
+  try {
+    const r = await fetch(API_BASE + '/users/refresh-token', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return r.ok;
+  } catch { return false; }
+}
 
+// ══════════════════════════════════
 //  TOAST
-
+// ══════════════════════════════════
 function toast(msg, type = 'info') {
   const box = document.getElementById('toasts');
   const el = document.createElement('div');
@@ -94,9 +122,9 @@ function toast(msg, type = 'info') {
   }, 3500);
 }
 
-
+// ══════════════════════════════════
 //  CONFIRM DIALOG
-
+// ══════════════════════════════════
 function confirm2(title, body, cb) {
   document.getElementById('dlg-title').textContent = title;
   document.getElementById('dlg-body').textContent = body;
@@ -696,28 +724,28 @@ async function likeComment(cmId, btn) {
 // ══════════════════════════════════
 async function renderSubscriptions() {
   const main = document.getElementById('main-content');
+  main.innerHTML = `<div class="loading"><div class="spin" style="width:30px;height:30px;border-width:3px;"></div></div>`;
   try {
-    // GET /subscriber/subscribed
-    const r = await api('/subscriber/subscribed');
-    const subs = r.data?.channels || r.data || [];
-    if (!subs.length) {
-      main.innerHTML = `
-        <div class="sec-hdr fade"><div class="sec-title">Subscriptions</div></div>
-        <div class="empty"><div class="empty-icon">📡</div><div class="empty-title">No subscriptions yet</div>
-        <div class="empty-sub">Find channels you love and subscribe</div></div>`;
-      return;
-    }
+    // GET /subscriber/subscribed  — channels I subscribed to
+    // GET /subscriber/subscribers/:channelId — people who subscribed to me
+    const [subsR, followersR] = await Promise.all([
+      api('/subscriber/subscribed'),
+      api(`/subscriber/subscribers/${S.user._id}`),
+    ]);
+    const subs      = subsR.data?.channels || subsR.data || [];
+    const followers = followersR.data?.subscribers || followersR.data || [];
+
     main.innerHTML = `
-      <div class="sec-hdr fade"><div class="sec-title">Subscriptions<small>${subs.length}</small></div></div>
-      <div class="vgrid fade">
-        ${subs.map(s => `
-          <div class="sub-card">
-            <div class="sub-av">${s.avatar ? `<img src="${esc(s.avatar)}" alt="" onerror="this.style.display='none'"/>` : initials(s.fullName || s.username)}</div>
-            <div class="sub-name">${esc(s.fullName || s.username || 'Channel')}</div>
-            <div class="sub-un">@${esc(s.username || '')}</div>
-            <button class="btn-subscribe subbed" onclick="toggleSubById('${esc(s._id)}',this)">✓ Subscribed</button>
-          </div>`).join('')}
-      </div>`;
+      <div class="sec-hdr fade"><div class="sec-title">Subscriptions</div></div>
+      <div class="tabs fade">
+        <button class="tab-btn active" id="stab-following" onclick="switchSubTab('following')">Following<span style="margin-left:6px;" class="tag tag-purple">${subs.length}</span></button>
+        <button class="tab-btn" id="stab-followers" onclick="switchSubTab('followers')">My Subscribers<span style="margin-left:6px;" class="tag tag-blue">${followers.length}</span></button>
+      </div>
+      <div id="sub-tab-content" class="fade"></div>`;
+
+    // store for tab switching
+    window._subData = { subs, followers };
+    renderSubList('following');
   } catch {
     main.innerHTML = `
       <div class="sec-hdr fade"><div class="sec-title">Subscriptions</div></div>
@@ -726,9 +754,36 @@ async function renderSubscriptions() {
   }
 }
 
+function switchSubTab(tab) {
+  document.querySelectorAll('#stab-following,#stab-followers').forEach(b => b.classList.remove('active'));
+  document.getElementById('stab-' + tab)?.classList.add('active');
+  renderSubList(tab);
+}
+
+function renderSubList(tab) {
+  const el = document.getElementById('sub-tab-content');
+  if (!el) return;
+  const list = tab === 'following' ? window._subData?.subs : window._subData?.followers;
+  if (!list?.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">${tab === 'following' ? '📡' : '👥'}</div>
+      <div class="empty-title">${tab === 'following' ? 'Not subscribed to anyone yet' : 'No subscribers yet'}</div></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="vgrid">
+    ${list.map(s => `
+      <div class="sub-card">
+        <div class="sub-av">${s.avatar ? `<img src="${esc(s.avatar)}" alt="" onerror="this.style.display='none'"/>` : initials(s.fullName || s.username)}</div>
+        <div class="sub-name">${esc(s.fullName || s.username || 'Channel')}</div>
+        <div class="sub-un">@${esc(s.username || '')}</div>
+        ${tab === 'following'
+          ? `<button class="btn-subscribe subbed" onclick="toggleSubById('${esc(s._id)}',this)">✓ Subscribed</button>`
+          : `<span class="tag tag-blue">Subscriber</span>`}
+      </div>`).join('')}
+  </div>`;
+}
+
 async function toggleSubById(id, btn) {
   try {
-    // POST /subscriber/:channelId
     await api(`/subscriber/${id}`, { method: 'POST' });
     const isNow = btn.classList.toggle('subbed');
     btn.textContent = isNow ? '✓ Subscribed' : 'Subscribe';
@@ -737,16 +792,29 @@ async function toggleSubById(id, btn) {
 }
 
 // ══════════════════════════════════
-//  WATCH HISTORY
+//  WATCH HISTORY  (GET /users/history)
 // ══════════════════════════════════
-function renderHistory() {
+async function renderHistory() {
   const main = document.getElementById('main-content');
-  const ids = S.history;
-  const vids = ids.map(id => S.videos.find(v => v._id === id)).filter(Boolean);
+  main.innerHTML = `<div class="loading"><div class="spin" style="width:30px;height:30px;border-width:3px;"></div></div>`;
+  try {
+    // Real backend watch history
+    const r = await api('/users/history');
+    const vids = r.data || [];
+    renderHistoryList(main, vids, 'real');
+  } catch {
+    // Fallback: localStorage cache
+    const vids = S.history.map(id => S.videos.find(v => v._id === id)).filter(Boolean);
+    renderHistoryList(main, vids, 'local');
+  }
+}
+
+function renderHistoryList(main, vids, source) {
   main.innerHTML = `
     <div class="sec-hdr fade">
       <div class="sec-title">Watch History<small>${vids.length} videos</small></div>
       ${vids.length ? `<button class="btn danger" onclick="clearHistory()">🗑 Clear All</button>` : ''}
+      ${source === 'local' ? `<span class="tag tag-blue" style="font-size:10px;">Local cache</span>` : ''}
     </div>
     <div class="fade">
     ${!vids.length
@@ -896,6 +964,7 @@ async function likeTweet(id, btn) {
 // ══════════════════════════════════
 async function renderPlaylists() {
   const main = document.getElementById('main-content');
+  main.innerHTML = `<div class="loading"><div class="spin" style="width:30px;height:30px;border-width:3px;"></div></div>`;
   try {
     const r = await api(`/playlist/user/${S.user._id}`);
     const pls = r.data?.playlists || r.data || [];
@@ -910,14 +979,15 @@ async function renderPlaylists() {
            <div class="empty-sub">Curate your favorite videos</div>
            <button class="btn accent" style="margin:16px auto;display:flex;" onclick="openModal('playlist-modal')">＋ Create Playlist</button></div>`
         : pls.map(p => `
-          <div class="pl-card">
+          <div class="pl-card" onclick="openPlaylist('${esc(p._id)}','${esc(p.name||'')}')">
             <div class="pl-thumb">🎵<div class="pl-cnt">${p.videos?.length || p.videosCount || 0}</div></div>
             <div style="flex:1;min-width:0;">
               <div class="pl-name">${esc(p.name || 'Untitled')}</div>
               <div class="pl-meta">${p.description ? esc(p.description.slice(0,90)) : 'No description'}</div>
-              <div style="margin-top:8px;font-size:12px;color:var(--text3);font-family:var(--mono);">${p.videos?.length || 0} videos</div>
+              <div style="margin-top:6px;font-size:12px;color:var(--text3);font-family:var(--mono);">${p.videos?.length || 0} videos</div>
             </div>
-            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+            <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;" onclick="event.stopPropagation()">
+              <button class="btn" onclick="openEditPlaylist('${esc(p._id)}','${esc(p.name||'')}','${esc(p.description||'')}')">✏️ Edit</button>
               <button class="btn danger" onclick="deletePlaylist('${esc(p._id)}',event)">🗑 Delete</button>
             </div>
           </div>`).join('')}
@@ -930,6 +1000,76 @@ async function renderPlaylists() {
       </div>
       <div class="empty"><div class="empty-icon">🎵</div><div class="empty-title">Could not load playlists</div></div>`;
   }
+}
+
+// GET /playlist/:playlistId — view playlist and its videos
+async function openPlaylist(id, name) {
+  const main = document.getElementById('main-content');
+  main.innerHTML = `<div class="loading"><div class="spin" style="width:30px;height:30px;border-width:3px;"></div></div>`;
+  try {
+    const r = await api(`/playlist/${id}`);
+    const pl = r.data || {};
+    const videos = pl.videos || [];
+    main.innerHTML = `
+      <div class="sec-hdr fade">
+        <div class="sec-title">🎵 ${esc(pl.name || name)}</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="openEditPlaylist('${esc(id)}','${esc(pl.name||'')}','${esc(pl.description||'')}')">✏️ Edit</button>
+          <button class="btn" onclick="navigate('playlists')">← Back</button>
+        </div>
+      </div>
+      ${pl.description ? `<div style="font-size:13px;color:var(--text2);margin-bottom:18px;padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);">${esc(pl.description)}</div>` : ''}
+      <div class="fade">
+      ${!videos.length
+        ? `<div class="empty"><div class="empty-icon">🎵</div><div class="empty-title">No videos in this playlist</div><div class="empty-sub">Add videos using the Save button on any video</div></div>`
+        : videos.map(v => `
+          <div class="hist-card">
+            <div class="hist-thumb" onclick="openVideo('${esc(v._id)}')">
+              ${v.thumbnail ? `<img src="${esc(v.thumbnail)}" alt="" loading="lazy" onerror="this.style.display='none'"/>` : '▶'}
+              <div class="hist-dur">${fmtDur(v.duration)}</div>
+            </div>
+            <div style="flex:1;min-width:0;" onclick="openVideo('${esc(v._id)}')">
+              <div class="hist-title">${esc(v.title || 'Untitled')}</div>
+              <div class="hist-meta">${esc(v.owner?.fullName || v.owner?.username || '')} · ${fmtNum(v.views)} views</div>
+            </div>
+            <button class="btn danger" style="flex-shrink:0;" onclick="removeFromPlaylist('${esc(v._id)}','${esc(id)}')">🗑 Remove</button>
+          </div>`).join('')}
+      </div>`;
+  } catch {
+    main.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load playlist</div>
+      <button class="btn" onclick="navigate('playlists')" style="margin:14px auto;display:flex;">← Back</button></div>`;
+  }
+}
+
+// PATCH /playlist/remove/:videoId/:playlistId
+async function removeFromPlaylist(videoId, playlistId) {
+  confirm2('Remove Video', 'Remove this video from the playlist?', async () => {
+    try {
+      const r = await api(`/playlist/remove/${videoId}/${playlistId}`, { method: 'PATCH' });
+      if (ok(r)) { toast('Video removed from playlist', 'info'); openPlaylist(playlistId, ''); }
+      else toast(r.message || 'Failed', 'error');
+    } catch { toast('Error', 'error'); }
+  });
+}
+
+// PATCH /playlist/:playlistId — edit name and description
+function openEditPlaylist(id, name, desc) {
+  $set('epl-id', id);
+  $set('epl-name', name);
+  $set('epl-desc', desc);
+  openModal('edit-playlist-modal');
+}
+
+async function handleEditPlaylist() {
+  const id = $v('epl-id'), name = $v('epl-name'), desc = $v('epl-desc');
+  if (!name) { toast('Name is required', 'error'); return; }
+  const btn = document.getElementById('epl-btn'); setBusy(btn, true);
+  try {
+    const r = await api(`/playlist/${id}`, { method: 'PATCH', body: { name, description: desc } });
+    if (ok(r)) { toast('Playlist updated!', 'success'); closeModal('edit-playlist-modal'); navigate('playlists'); }
+    else toast(r.message || 'Failed', 'error');
+  } catch { toast('Error', 'error'); }
+  finally { setBusy(btn, false, 'Save Changes'); }
 }
 
 async function handleCreatePlaylist() {
@@ -1043,20 +1183,35 @@ async function handleEditVideo() {
   finally { setBusy(btn, false, 'Save Changes'); }
 }
 
-async function togglePublish(id) {
-  try {
-    await api(`/video/toggle/publish/${id}`, { method: 'PATCH' });
-    toast('Visibility updated', 'info'); navigate('dashboard');
-  } catch { toast('Error', 'error'); }
-}
-
 async function deleteVideo(id) {
   confirm2('Delete Video', 'This cannot be undone. Delete this video permanently?', async () => {
     try {
-      await api(`/video/${id}`, { method: 'DELETE' });
-      toast('Video deleted', 'info'); navigate('dashboard');
-    } catch { toast('Error deleting video', 'error'); }
+      const r = await api(`/video/${id}`, { method: 'DELETE' });
+      // Backend returns success:true or statusCode:200 on successful delete
+      if (ok(r) || r.statusCode === 200) {
+        toast('Video deleted', 'success');
+        // Remove from local cache so UI updates instantly
+        S.videos = S.videos.filter(v => v._id !== id);
+        navigate('dashboard');
+      } else {
+        toast(r.message || 'Delete failed — check if you own this video', 'error');
+      }
+    } catch (e) {
+      if (e.message !== 'Unauthorized') {
+        toast('Error deleting video: ' + (e.message || 'unknown error'), 'error');
+      }
+    }
   });
+}
+
+async function togglePublish(id) {
+  try {
+    const r = await api(`/video/toggle/publish/${id}`, { method: 'PATCH' });
+    if (ok(r)) {
+      toast('Visibility updated', 'info');
+      navigate('dashboard');
+    } else toast(r.message || 'Failed to update visibility', 'error');
+  } catch { toast('Error', 'error'); }
 }
 
 // ══════════════════════════════════
