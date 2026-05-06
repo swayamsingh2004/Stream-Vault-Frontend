@@ -1,6 +1,6 @@
 
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = 'https://stream-vault-z91y.onrender.com/api/v1';
 
 
 async function checkBackendConnection() {
