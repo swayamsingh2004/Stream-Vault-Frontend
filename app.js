@@ -63,9 +63,13 @@ const S = {
 // ══════════════════════════════════
 async function api(path, opts = {}) {
   const isForm = opts.body instanceof FormData;
+  const token = localStorage.getItem('sv_accessToken');
   const options = {
     credentials: 'include',
-    headers: isForm ? {} : { 'Content-Type': 'application/json' },
+    headers: {
+      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
+      ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+    },
     ...opts,
   };
   if (!isForm && options.body && typeof options.body === 'object') {
@@ -99,11 +103,21 @@ function ok(r) { return r && (r.success || r.statusCode === 200 || r.statusCode 
 // POST /users/refresh-token — silently refreshes expired access token
 async function tryRefreshToken() {
   try {
+    const refreshToken = localStorage.getItem('sv_refreshToken');
+    if (!refreshToken) return false;
     const r = await fetch(API_BASE + '/users/refresh-token', {
       method: 'POST',
       credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
     });
-    return r.ok;
+    if (!r.ok) return false;
+    const data = await r.json();
+    if (data?.data?.accessToken) {
+      localStorage.setItem('sv_accessToken', data.data.accessToken);
+      localStorage.setItem('sv_refreshToken', data.data.refreshToken || refreshToken);
+    }
+    return true;
   } catch { return false; }
 }
 
@@ -299,6 +313,8 @@ async function handleLogin() {
     const r = await api('/users/login', { method: 'POST', body });
     if (ok(r)) {
       S.user = r.data?.user || r.data;
+      if (r.data?.accessToken) localStorage.setItem('sv_accessToken', r.data.accessToken);
+      if (r.data?.refreshToken) localStorage.setItem('sv_refreshToken', r.data.refreshToken);
       toast('Welcome back, ' + (S.user.fullName || S.user.username) + '!', 'success');
       showApp(); navigate('home');
     } else {
@@ -334,6 +350,8 @@ async function handleRegister() {
 async function handleLogout() {
   try { await api('/users/logout', { method: 'POST' }); } catch {}
   S.user = null;
+  localStorage.removeItem('sv_accessToken');
+  localStorage.removeItem('sv_refreshToken');
   toast('Signed out', 'info');
   showAuth();
 }
